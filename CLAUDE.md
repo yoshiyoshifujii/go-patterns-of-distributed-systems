@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Language Settings
+- Default response language: Japanese
+- Always respond in Japanese when I write to you in Japanese
+- Technical terms and code examples can remain in English when necessary
+
 ## Project Overview
 
 This repository implements distributed systems patterns from the book "分散システムのためのデザインパターン" (Patterns of Distributed Systems) by Maruzen Publishing in Go. The project is currently in its initial setup phase.
