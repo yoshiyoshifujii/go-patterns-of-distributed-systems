@@ -36,7 +36,8 @@ func TestArrangePartitionsAssignsMembersRoundRobin(t *testing.T) {
 	}
 
 	// When
-	actual := arrangePartitions(ranges, members)
+	sut := &ClusterCoordinator{}
+	actual := sut.arrangePartitions(ranges, members)
 
 	// Then
 	assert.Len(t, actual.partitions, len(ranges), "partition count mismatch")
@@ -67,7 +68,8 @@ func TestArrangePartitionsWithNoMembers(t *testing.T) {
 	ranges := createRangesFromSplitPoints([]string{"k"})
 
 	// When
-	actual := arrangePartitions(ranges, nil)
+	sut := &ClusterCoordinator{}
+	actual := sut.arrangePartitions(ranges, nil)
 
 	// Then
 	assert.Empty(t, actual.partitions, "partitions should be empty when no members live")

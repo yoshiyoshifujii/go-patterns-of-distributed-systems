@@ -36,16 +36,16 @@ type (
 
 	ClusterCoordinator struct {
 		membership MembershipService
+
+		mu      sync.Mutex
+		counter uint64
 	}
 )
 
 var (
-	RangeMinKey                             = RangeKey("")
-	RangeMaxKey                             = RangeKey("\uffff")
-	PartitionStatusAssigned PartitionStatus = "Assigned"
-
-	partitionCounter   uint64
-	partitionCounterMu sync.Mutex
+	RangeMinKey             = RangeKey("")
+	RangeMaxKey             = RangeKey("\uffff")
+	PartitionStatusAssigned = PartitionStatus("Assigned")
 )
 
 func newRange(startKey, endKey RangeKey) Range {
@@ -76,9 +76,9 @@ func (pt *PartitionTable) addPartition(partitionId string, partitionInfo Partiti
 	pt.partitions[partitionId] = partitionInfo
 }
 
-func (c ClusterCoordinator) createPartitionTableFor(splits []string) PartitionTable {
+func (c *ClusterCoordinator) createPartitionTableFor(splits []string) PartitionTable {
 	ranges := createRangesFromSplitPoints(splits)
-	return arrangePartitions(ranges, c.membership.getLiveMembers())
+	return c.arrangePartitions(ranges, c.membership.getLiveMembers())
 }
 
 func createRangesFromSplitPoints(splits []string) []Range {
@@ -93,7 +93,7 @@ func createRangesFromSplitPoints(splits []string) []Range {
 	return ranges
 }
 
-func arrangePartitions(ranges []Range, liveMembers []Member) PartitionTable {
+func (c *ClusterCoordinator) arrangePartitions(ranges []Range, liveMembers []Member) PartitionTable {
 	partitionTable := PartitionTable{
 		partitions: make(map[string]PartitionInfo, len(ranges)),
 	}
@@ -104,17 +104,17 @@ func arrangePartitions(ranges []Range, liveMembers []Member) PartitionTable {
 
 	for i, rng := range ranges {
 		member := liveMembers[i%len(liveMembers)]
-		partitionId := newPartitionId()
-		partitionInfo := newPartitionInfo(partitionId, member.getAddress(), PartitionStatusAssigned, rng)
-		partitionTable.addPartition(partitionId, partitionInfo)
+		partitionID := c.newPartitionID()
+		partitionInfo := newPartitionInfo(partitionID, member.getAddress(), PartitionStatusAssigned, rng)
+		partitionTable.addPartition(partitionID, partitionInfo)
 	}
 
 	return partitionTable
 }
 
-func newPartitionId() string {
-	partitionCounterMu.Lock()
-	defer partitionCounterMu.Unlock()
-	partitionCounter++
-	return "partition-" + strconv.FormatUint(partitionCounter, 10)
+func (c *ClusterCoordinator) newPartitionID() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.counter++
+	return "partition-" + strconv.FormatUint(c.counter, 10)
 }
