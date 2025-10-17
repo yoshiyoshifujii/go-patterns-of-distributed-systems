@@ -1,30 +1,30 @@
 package chapter_20
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestCreateRangesFromSplitPoints(t *testing.T) {
+	// Given
 	splits := []string{"d", "m"}
 
-	ranges := createRangesFromSplitPoints(splits)
+	// When
+	actual := createRangesFromSplitPoints(splits)
 
-	if len(ranges) != len(splits)+1 {
-		t.Fatalf("expected %d ranges, got %d", len(splits)+1, len(ranges))
-	}
-
-	if ranges[0].startKey != RangeMinKey || ranges[0].endKey != RangeKey("d") {
-		t.Errorf("unexpected first range: %+v", ranges[0])
-	}
-
-	if ranges[1].startKey != RangeKey("d") || ranges[1].endKey != RangeKey("m") {
-		t.Errorf("unexpected second range: %+v", ranges[1])
-	}
-
-	if ranges[2].startKey != RangeKey("m") || ranges[2].endKey != RangeMaxKey {
-		t.Errorf("unexpected terminal range: %+v", ranges[2])
-	}
+	// Then
+	assert.Len(t, actual, len(splits)+1, "range count mismatch")
+	assert.Equal(t, RangeMinKey, actual[0].startKey, "first range start")
+	assert.Equal(t, RangeKey("d"), actual[0].endKey, "first range end")
+	assert.Equal(t, RangeKey("d"), actual[1].startKey, "second range start")
+	assert.Equal(t, RangeKey("m"), actual[1].endKey, "second range end")
+	assert.Equal(t, RangeKey("m"), actual[2].startKey, "last range start")
+	assert.Equal(t, RangeMaxKey, actual[2].endKey, "last range end")
 }
 
 func TestArrangePartitionsAssignsMembersRoundRobin(t *testing.T) {
+	// Given
 	ranges := []Range{
 		newRange(RangeMinKey, RangeKey("h")),
 		newRange(RangeKey("h"), RangeKey("t")),
@@ -35,11 +35,11 @@ func TestArrangePartitionsAssignsMembersRoundRobin(t *testing.T) {
 		{address: "node-b"},
 	}
 
-	table := arrangePartitions(ranges, members)
+	// When
+	actual := arrangePartitions(ranges, members)
 
-	if len(table.partitions) != len(ranges) {
-		t.Fatalf("expected %d partitions, got %d", len(ranges), len(table.partitions))
-	}
+	// Then
+	assert.Len(t, actual.partitions, len(ranges), "partition count mismatch")
 
 	expectedAssignments := map[RangeKey]string{
 		ranges[0].startKey: "node-a",
@@ -49,35 +49,26 @@ func TestArrangePartitionsAssignsMembersRoundRobin(t *testing.T) {
 
 	seenStarts := make(map[RangeKey]struct{})
 
-	for _, info := range table.partitions {
-		if info.id == "" {
-			t.Error("partition id should not be empty")
-		}
-		if info.status != PartitionStatusAssigned {
-			t.Errorf("expected status Assigned, got %s", info.status)
-		}
+	for _, info := range actual.partitions {
+		assert.NotEmpty(t, info.id, "partition id should not be empty")
+		assert.Equal(t, PartitionStatusAssigned, info.status, "partition status")
 
 		expectedAddress, ok := expectedAssignments[info.keyRange.startKey]
-		if !ok {
-			t.Fatalf("unexpected range start key %q", info.keyRange.startKey)
-		}
-		if info.memberAddress != expectedAddress {
-			t.Errorf("range starting at %q assigned to %q, want %q", info.keyRange.startKey, info.memberAddress, expectedAddress)
-		}
+		assert.Truef(t, ok, "unexpected range start key %q", info.keyRange.startKey)
+		assert.Equalf(t, expectedAddress, info.memberAddress, "assigned member mismatch for range %q", info.keyRange.startKey)
 		seenStarts[info.keyRange.startKey] = struct{}{}
 	}
 
-	if len(seenStarts) != len(expectedAssignments) {
-		t.Fatalf("expected %d unique ranges, saw %d", len(expectedAssignments), len(seenStarts))
-	}
+	assert.Len(t, seenStarts, len(expectedAssignments), "unexpected number of unique range starts")
 }
 
 func TestArrangePartitionsWithNoMembers(t *testing.T) {
+	// Given
 	ranges := createRangesFromSplitPoints([]string{"k"})
 
-	table := arrangePartitions(ranges, nil)
+	// When
+	actual := arrangePartitions(ranges, nil)
 
-	if len(table.partitions) != 0 {
-		t.Fatalf("expected no partitions when no members are live, got %d", len(table.partitions))
-	}
+	// Then
+	assert.Empty(t, actual.partitions, "partitions should be empty when no members live")
 }
